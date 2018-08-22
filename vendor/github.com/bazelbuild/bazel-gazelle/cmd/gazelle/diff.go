@@ -20,18 +20,21 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
+
+	"github.com/bazelbuild/bazel-gazelle/internal/config"
+	bf "github.com/bazelbuild/buildtools/build"
 )
 
-func diffFile(path string, newContents []byte) error {
-	oldContents, err := ioutil.ReadFile(path)
+func diffFile(c *config.Config, file *bf.File, path string) error {
+	oldContents, err := ioutil.ReadFile(file.Path)
 	if err != nil {
 		oldContents = nil
 	}
+	newContents := bf.Format(file)
 	if bytes.Equal(oldContents, newContents) {
 		return nil
 	}
-	f, err := ioutil.TempFile("", filepath.Base(path))
+	f, err := ioutil.TempFile("", c.DefaultBuildFileName())
 	if err != nil {
 		return err
 	}

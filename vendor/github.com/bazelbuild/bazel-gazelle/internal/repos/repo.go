@@ -22,7 +22,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/bazelbuild/bazel-gazelle/internal/rule"
+	"github.com/bazelbuild/bazel-gazelle/internal/generator"
+	bf "github.com/bazelbuild/buildtools/build"
 )
 
 // Repo describes an external repository rule declared in a Bazel
@@ -71,7 +72,7 @@ var lockFileParsers = map[lockFileFormat]func(string) ([]Repo, error){
 // a list of equivalent repository rules that can be merged into a WORKSPACE
 // file. The format of the file is inferred from its basename. Currently,
 // only Gopkg.lock is supported.
-func ImportRepoRules(filename string) ([]*rule.Rule, error) {
+func ImportRepoRules(filename string) ([]bf.Expr, error) {
 	format := getLockFileFormat(filename)
 	if format == unknownFormat {
 		return nil, fmt.Errorf(`%s: unrecognized lock file format. Expected "Gopkg.lock"`, filename)
@@ -83,7 +84,7 @@ func ImportRepoRules(filename string) ([]*rule.Rule, error) {
 	}
 	sort.Stable(byName(repos))
 
-	rules := make([]*rule.Rule, 0, len(repos))
+	rules := make([]bf.Expr, 0, len(repos))
 	for _, repo := range repos {
 		rules = append(rules, GenerateRule(repo))
 	}
@@ -101,17 +102,19 @@ func getLockFileFormat(filename string) lockFileFormat {
 
 // GenerateRule returns a repository rule for the given repository that can
 // be written in a WORKSPACE file.
-func GenerateRule(repo Repo) *rule.Rule {
-	r := rule.NewRule("go_repository", repo.Name)
-	r.SetAttr("commit", repo.Commit)
-	r.SetAttr("importpath", repo.GoPrefix)
+func GenerateRule(repo Repo) bf.Expr {
+	attrs := []generator.KeyValue{
+		{Key: "name", Value: repo.Name},
+		{Key: "commit", Value: repo.Commit},
+		{Key: "importpath", Value: repo.GoPrefix},
+	}
 	if repo.Remote != "" {
-		r.SetAttr("remote", repo.Remote)
+		attrs = append(attrs, generator.KeyValue{Key: "remote", Value: repo.Remote})
 	}
 	if repo.VCS != "" {
-		r.SetAttr("vcs", repo.VCS)
+		attrs = append(attrs, generator.KeyValue{Key: "vcs", Value: repo.VCS})
 	}
-	return r
+	return generator.NewRule("go_repository", attrs)
 }
 
 // FindExternalRepo attempts to locate the directory where Bazel has fetched
@@ -146,9 +149,14 @@ func FindExternalRepo(repoRoot, name string) (string, error) {
 //
 // The set of repositories returned is necessarily incomplete, since we don't
 // evaluate the file, and repositories may be declared in macros in other files.
-func ListRepositories(workspace *rule.File) []Repo {
+func ListRepositories(workspace *bf.File) []Repo {
 	var repos []Repo
-	for _, r := range workspace.Rules {
+	for _, e := range workspace.Stmt {
+		call, ok := e.(*bf.CallExpr)
+		if !ok {
+			continue
+		}
+		r := bf.Rule{Call: call}
 		name := r.Name()
 		if name == "" {
 			continue

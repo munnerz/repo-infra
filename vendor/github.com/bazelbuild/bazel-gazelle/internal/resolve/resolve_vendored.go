@@ -13,16 +13,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package resolve
 
 import (
-	"os"
-
-	"github.com/bazelbuild/bazel-gazelle/internal/config"
-	bf "github.com/bazelbuild/buildtools/build"
+	"github.com/bazelbuild/bazel-gazelle/internal/label"
 )
 
-func printFile(c *config.Config, f *bf.File, _ string) error {
-	_, err := os.Stdout.Write(bf.Format(f))
-	return err
+// vendoredResolver resolves external packages as packages in vendor/.
+type vendoredResolver struct {
+	l *label.Labeler
+}
+
+var _ nonlocalResolver = (*vendoredResolver)(nil)
+
+func newVendoredResolver(l *label.Labeler) *vendoredResolver {
+	return &vendoredResolver{l}
+}
+
+func (v *vendoredResolver) resolve(importpath string) (label.Label, error) {
+	return v.l.LibraryLabel("vendor/" + importpath), nil
 }

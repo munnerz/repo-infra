@@ -13,16 +13,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
-
-import (
-	"os"
-
-	"github.com/bazelbuild/bazel-gazelle/internal/config"
-	bf "github.com/bazelbuild/buildtools/build"
-)
-
-func printFile(c *config.Config, f *bf.File, _ string) error {
-	_, err := os.Stdout.Write(bf.Format(f))
-	return err
-}
+// Package packages provides Go package traversal in a Bazel repository.
+package packages
