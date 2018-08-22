@@ -21,10 +21,11 @@ required = [
 
 [[constraint]]
   name = "github.com/bazelbuild/bazel-gazelle"
-  version = "0.14.0"
+  version = "0.12.0"
 
 [[constraint]]
   name = "github.com/bazelbuild/buildtools"
-  version = "0.15.0"
+  revision = "80c7f0d45d7e40fa1f7362852697d4a03df557b3"
+
 
 # END gazelle dependencies
